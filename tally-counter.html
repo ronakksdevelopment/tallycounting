@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Click Counter</title>
+<style>
+  :root{
+    --bg-0:#14161b;
+    --bg-1:#1c1f26;
+    --bg-2:#242832;
+    --paper:#2c313d;
+    --ink-0:#eef0f4;
+    --ink-1:#a7adba;
+    --ink-2:#6b7280;
+    --metal-hi:#e4e7ec;
+    --metal-lo:#8a90a0;
+    --lcd-bg:#1a2418;
+    --lcd-bg-2:#213222;
+    --lcd-ink:#8fbf6f;
+    --lcd-ink-dim:#2f4a2a;
+    --device:#7FB3D5;
+    --device-hi:#a9cfe6;
+    --device-lo:#5c8caf;
+    --focus:#f2c14e;
+    --radius-lg:28px;
+    --radius-md:18px;
+    --shadow-deep:0 20px 40px -12px rgba(0,0,0,.55);
+    font-size:16px;
+  }
+
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{
+    margin:0;padding:0;height:100%;
+    background:var(--bg-0);
+    color:var(--ink-0);
+    font-family:'Segoe UI',system-ui,-apple-system,Roboto,sans-serif;
+    overscroll-behavior:none;
+    -webkit-user-select:none;user-select:none;
+  }
+  body{
+    background:
+      radial-gradient(1200px 600px at 50% -10%, #232735 0%, transparent 60%),
+      linear-gradient(180deg,var(--bg-0),var(--bg-1) 40%,var(--bg-0));
+    min-height:100vh;
+    display:flex;justify-content:center;
+  }
+  .app{
+    width:100%;
+    max-width:480px;
+    min-height:100vh;
+    min-height:100dvh;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    display:flex;flex-direction:column;
+    position:relative;
+  }
+
+  /* ---------- Header ---------- */
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:18px 20px 6px;
+  }
+  .brand{
+    display:flex;flex-direction:column;line-height:1.05;
+  }
+  .brand .eyebrow{
+    font-size:.68rem;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--ink-2);font-weight:600;
+  }
+  .brand h1{
+    margin:2px 0 0;font-size:1.28rem;font-weight:700;letter-spacing:-.01em;
+  }
+  .icon-btn{
+    width:42px;height:42px;border-radius:14px;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--bg-2);border:1px solid #ffffff12;
+    color:var(--ink-1);
+    transition:transform .15s ease, background .15s ease, color .15s ease;
+  }
+  .icon-btn:active{transform:scale(.9);background:var(--bg-1);}
+  .icon-btn svg{width:20px;height:20px;}
+
+  /* ---------- Tabs (saved counters) ---------- */
+  .tabs-row{
+    display:flex;gap:8px;padding:14px 20px 4px;overflow-x:auto;
+    scrollbar-width:none;
+  }
+  .tabs-row::-webkit-scrollbar{display:none;}
+  .tab{
+    flex:0 0 auto;
+    padding:9px 16px;border-radius:999px;
+    font-size:.85rem;font-weight:600;color:var(--ink-1);
+    background:var(--bg-2);border:1px solid #ffffff10;
+    display:flex;align-items:center;gap:7px;
+    transition:all .18s ease;
+    white-space:nowrap;
+  }
+  .tab.active{
+    color:#14161b;
+    background:var(--tab-color, var(--device));
+    border-color:transparent;
+    box-shadow:0 6px 16px -4px color-mix(in srgb, var(--tab-color, var(--device)) 70%, transparent);
+  }
+  .tab .dot{width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.55;}
+  .tab.active .dot{opacity:.9;}
+  .tab.add{
+    background:transparent;border-style:dashed;color:var(--ink-2);
+  }
+
+  /* ---------- Stage ---------- */
+  .stage{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+    padding:8px 20px 10px;
+    position:relative;
+  }
+
+  .counter-label-row{
+    width:100%;display:flex;align-items:center;justify-content:center;
+    gap:8px;margin:10px 0 22px;
+  }
+  .counter-label{
+    font-size:1.05rem;font-weight:700;letter-spacing:-.01em;color:var(--ink-0);
+    text-align:center;
+    max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    border-bottom:1px dashed transparent;
+  }
+  .counter-label:active{border-color:var(--ink-2);}
+
+  /* ---------- Device ---------- */
+  .device-wrap{
+    position:relative;
+    width:min(78vw, 310px);
+    aspect-ratio:1/1.28;
+    margin:0 auto 8px;
+    filter:drop-shadow(var(--shadow-deep));
+    transition:transform .35s cubic-bezier(.2,.9,.3,1.2);
+  }
+  .device-wrap.pressed{transform:scale(.975);}
+
+  .device-body{
+    position:absolute;inset:0;
+    border-radius:34% 34% 30% 30% / 26% 26% 22% 22%;
+    background:
+      linear-gradient(155deg, var(--device-hi) 0%, var(--device) 38%, var(--device-lo) 100%);
+    border:1px solid rgba(0,0,0,.12);
+    overflow:hidden;
+  }
+  .device-body::before{ /* top gloss */
+    content:"";position:absolute;top:6%;left:10%;width:55%;height:22%;
+    background:radial-gradient(ellipse at center, rgba(255,255,255,.55), transparent 70%);
+    border-radius:50%;
+    filter:blur(2px);
+    pointer-events:none;
+  }
+  .device-body::after{ /* bottom shade */
+    content:"";position:absolute;inset:0;
+    background:linear-gradient(0deg, rgba(0,0,0,.16), transparent 40%);
+    pointer-events:none;
+  }
+
+  .strap{
+    position:absolute;
+    right:-6%;
+    top:58%;
+    width:46%;
+    height:34%;
+    background:linear-gradient(120deg, rgba(255,255,255,.55), rgba(255,255,255,.15));
+    border:1px solid rgba(255,255,255,.5);
+    border-radius:0 40% 40% 0 / 0 50% 50% 0;
+    opacity:.65;
+    transform:rotate(4deg);
+  }
+
+  .lcd-window{
+    position:absolute;
+    top:11%;left:11%;right:11%;
+    height:27%;
+    background:linear-gradient(160deg, var(--lcd-bg-2), var(--lcd-bg));
+    border-radius:8px;
+    border:3px solid #10131a;
+    box-shadow: inset 0 3px 8px rgba(0,0,0,.6), inset 0 -1px 0 rgba(255,255,255,.03);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    overflow:hidden;
+  }
+  .lcd-brand{
+    position:absolute;top:6%;left:0;right:0;text-align:center;
+    font-size:.52rem;letter-spacing:.14em;color:var(--lcd-ink);
+    opacity:.55;font-weight:700;text-transform:uppercase;
+  }
+  .lcd-digits{
+    font-family:'Courier New',monospace;
+    font-weight:700;
+    font-variant-numeric:tabular-nums;
+    color:var(--lcd-ink);
+    text-shadow:0 0 10px color-mix(in srgb, var(--lcd-ink) 55%, transparent);
+    font-size:clamp(1.9rem, 9vw, 2.6rem);
+    letter-spacing:.03em;
+    display:flex;
+  }
+  .lcd-digits .ghost{color:var(--lcd-ink-dim);}
+  .lcd-digits .digit{
+    display:inline-block;
+    transition:transform .12s ease;
+  }
+  .lcd-digits.bump .digit{animation:digitBump .22s ease;}
+  @keyframes digitBump{
+    0%{transform:translateY(0);}
+    35%{transform:translateY(-14%);}
+    100%{transform:translateY(0);}
+  }
+  .lcd-caption{
+    position:absolute;bottom:5%;left:0;right:0;text-align:center;
+    font-size:.5rem;letter-spacing:.1em;color:var(--lcd-ink);
+    opacity:.4;font-weight:600;text-transform:uppercase;
+  }
+
+  .reset-label{
+    position:absolute;
+    top:41%;
+    left:11%;
+    font-size:.56rem;letter-spacing:.12em;color:rgba(0,0,0,.38);
+    font-weight:700;text-transform:uppercase;
+  }
+  .count-label{
+    position:absolute;
+    top:41%;
+    right:12%;
+    font-size:.56rem;letter-spacing:.12em;color:rgba(0,0,0,.38);
+    font-weight:700;text-transform:uppercase;
+  }
+
+  .plunger-zone{
+    position:absolute;
+    top:46%;bottom:6%;left:0;right:0;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .plunger{
+    position:relative;
+    width:44%;
+    aspect-ratio:1/1;
+    border-radius:50%;
+    background:
+      radial-gradient(circle at 35% 28%, var(--metal-hi), var(--metal-lo) 55%, #6b7280 100%);
+    box-shadow:
+      0 8px 0 0 #4b5160,
+      0 12px 18px rgba(0,0,0,.45),
+      inset 0 2px 3px rgba(255,255,255,.6);
+    transition:transform .08s ease, box-shadow .08s ease;
+    cursor:pointer;
+  }
+  .plunger::after{
+    content:"";position:absolute;inset:18%;
+    border-radius:50%;
+    border:1px solid rgba(0,0,0,.15);
+    box-shadow:inset 0 2px 4px rgba(0,0,0,.15);
+  }
+  .device-wrap.pressed .plunger{
+    transform:translateY(6px);
+    box-shadow:
+      0 2px 0 0 #4b5160,
+      0 4px 8px rgba(0,0,0,.4),
+      inset 0 2px 3px rgba(255,255,255,.5);
+  }
+
+  .side-button{
+    position:absolute;
+    right:-4%;
+    top:14%;
+    width:9%;
+    height:9%;
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, var(--metal-hi), var(--metal-lo));
+    box-shadow:0 3px 0 #4b5160, 0 4px 6px rgba(0,0,0,.35);
+  }
+
+  /* ---------- Ripple ---------- */
+  .ripple{
+    position:absolute;
+    border-radius:50%;
+    background:radial-gradient(circle, color-mix(in srgb, var(--device) 60%, white) 0%, transparent 70%);
+    pointer-events:none;
+    animation:rippleOut .5s ease-out forwards;
+  }
+  @keyframes rippleOut{
+    from{opacity:.65;transform:scale(.2);}
+    to{opacity:0;transform:scale(2.4);}
+  }
+
+  /* ---------- Stats row ---------- */
+  .stats-row{
+    display:flex;gap:10px;width:100%;max-width:340px;margin:26px auto 4px;
+  }
+  .stat-chip{
+    flex:1;background:var(--bg-2);border:1px solid #ffffff0f;
+    border-radius:16px;padding:10px 8px;text-align:center;
+  }
+  .stat-chip .v{font-size:1.05rem;font-weight:800;font-variant-numeric:tabular-nums;}
+  .stat-chip .k{font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);margin-top:2px;}
+
+  /* ---------- Controls ---------- */
+  .controls{
+    display:flex;gap:12px;width:100%;max-width:340px;margin:22px auto 0;
+  }
+  .ctrl-btn{
+    flex:1;
+    padding:14px 10px;
+    border-radius:16px;
+    font-size:.88rem;font-weight:700;
+    display:flex;align-items:center;justify-content:center;gap:7px;
+    border:1px solid #ffffff12;
+    background:var(--bg-2);
+    color:var(--ink-0);
+    transition:transform .12s ease, background .12s ease;
+  }
+  .ctrl-btn svg{width:17px;height:17px;}
+  .ctrl-btn:active{transform:scale(.96);background:var(--bg-1);}
+  .ctrl-btn.danger{color:#ff9a8b;}
+  .ctrl-btn.primary{
+    background:var(--device);
+    color:#14161b;
+    border-color:transparent;
+  }
+
+  .step-row{
+    display:flex;align-items:center;justify-content:center;gap:14px;
+    margin-top:22px;color:var(--ink-1);font-size:.82rem;font-weight:600;
+  }
+  .step-row .step-btns{display:flex;gap:6px;}
+  .step-pill{
+    padding:6px 13px;border-radius:999px;font-size:.78rem;font-weight:700;
+    background:var(--bg-2);color:var(--ink-1);border:1px solid #ffffff10;
+  }
+  .step-pill.active{background:var(--device);color:#14161b;border-color:transparent;}
+
+  /* ---------- Sheet (color / settings) ---------- */
+  .sheet-backdrop{
+    position:fixed;inset:0;background:rgba(0,0,0,.55);
+    opacity:0;pointer-events:none;transition:opacity .25s ease;
+    z-index:40;
+    display:flex;align-items:flex-end;justify-content:center;
+  }
+  .sheet-backdrop.open{opacity:1;pointer-events:auto;}
+  .sheet{
+    width:100%;max-width:480px;
+    background:var(--bg-1);
+    border-radius:26px 26px 0 0;
+    padding:10px 22px calc(26px + env(safe-area-inset-bottom));
+    transform:translateY(100%);
+    transition:transform .32s cubic-bezier(.2,.9,.3,1.1);
+    box-shadow:0 -20px 50px rgba(0,0,0,.5);
+  }
+  .sheet-backdrop.open .sheet{transform:translateY(0);}
+  .sheet-handle{
+    width:38px;height:4px;border-radius:99px;background:#ffffff22;
+    margin:8px auto 14px;
+  }
+  .sheet h2{margin:0 0 4px;font-size:1.08rem;}
+  .sheet p.hint{margin:0 0 18px;color:var(--ink-2);font-size:.82rem;}
+
+  .swatches{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:8px;}
+  .swatch{
+    aspect-ratio:1/1;border-radius:14px;position:relative;
+    border:2px solid transparent;
+    transition:transform .12s ease, border-color .12s ease;
+  }
+  .swatch.selected{border-color:#fff;transform:scale(1.06);}
+  .swatch.selected::after{
+    content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    color:#14161b;font-weight:900;font-size:1rem;
+  }
+
+  .field{margin:18px 0 6px;}
+  .field label{display:block;font-size:.75rem;color:var(--ink-2);margin-bottom:8px;letter-spacing:.04em;text-transform:uppercase;font-weight:700;}
+  .field input[type=text]{
+    width:100%;padding:13px 14px;border-radius:14px;
+    background:var(--bg-2);border:1px solid #ffffff14;color:var(--ink-0);
+    font-size:.95rem;font-weight:600;
+  }
+  .field input[type=text]:focus{outline:2px solid var(--focus);outline-offset:1px;}
+
+  .sheet-actions{display:flex;gap:10px;margin-top:22px;}
+  .sheet-actions .ctrl-btn{padding:15px 10px;}
+
+  /* list of counters in sheet */
+  .counter-list{display:flex;flex-direction:column;gap:8px;max-height:44vh;overflow-y:auto;margin-top:4px;}
+  .counter-row{
+    display:flex;align-items:center;gap:12px;
+    background:var(--bg-2);border-radius:16px;padding:12px 14px;
+  }
+  .counter-row .swatch-sm{width:14px;height:14px;border-radius:5px;flex:0 0 auto;}
+  .counter-row .name{flex:1;font-weight:700;font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .counter-row .val{font-variant-numeric:tabular-nums;font-weight:800;color:var(--ink-1);font-size:.88rem;}
+  .counter-row .del{
+    width:30px;height:30px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+    color:var(--ink-2);
+  }
+  .counter-row .del svg{width:15px;height:15px;}
+  .counter-row .del:active{background:#ff9a8b22;color:#ff9a8b;}
+
+  /* focus visibility for a11y */
+  button:focus-visible, .icon-btn:focus-visible, .ctrl-btn:focus-visible, .tab:focus-visible, .plunger:focus-visible{
+    outline:2px solid var(--focus); outline-offset:2px;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.001ms !important; transition-duration:.001ms !important;}
+  }
+
+  .toast{
+    position:fixed;left:50%;bottom:28px;transform:translate(-50%, 20px);
+    background:var(--bg-2);color:var(--ink-0);
+    padding:11px 18px;border-radius:14px;font-size:.85rem;font-weight:600;
+    box-shadow:0 10px 24px rgba(0,0,0,.4);
+    opacity:0;pointer-events:none;transition:all .25s ease;
+    z-index:60;border:1px solid #ffffff14;
+    max-width:80%;text-align:center;
+  }
+  .toast.show{opacity:1;transform:translate(-50%,0);}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <div class="topbar">
+    <div class="brand">
+      <span class="eyebrow">Hand Tally</span>
+      <h1 id="deviceTitle">Click Counter</h1>
+    </div>
+    <button class="icon-btn" id="openSettings" aria-label="Manage counters">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 0 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 0 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg>
+    </button>
+  </div>
+
+  <div class="tabs-row" id="tabsRow"></div>
+
+  <div class="stage">
+    <div class="counter-label-row">
+      <div class="counter-label" id="counterLabel" title="Tap to rename">Prayer Count</div>
+    </div>
+
+    <div class="device-wrap" id="deviceWrap">
+      <div class="device-body">
+        <div class="strap"></div>
+        <div class="lcd-window">
+          <div class="lcd-brand">Tally Counter</div>
+          <div class="lcd-digits" id="lcdDigits"></div>
+          <div class="lcd-caption">Count · Reset</div>
+        </div>
+        <div class="reset-label">Reset</div>
+        <div class="count-label">Count</div>
+        <div class="side-button"></div>
+        <div class="plunger-zone">
+          <button class="plunger" id="plunger" aria-label="Increment counter"></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-row">
+      <span>Step</span>
+      <div class="step-btns" id="stepBtns">
+        <button class="step-pill" data-step="1">+1</button>
+        <button class="step-pill" data-step="5">+5</button>
+        <button class="step-pill" data-step="10">+10</button>
+        <button class="step-pill" data-step="100">+100</button>
+      </div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-chip"><div class="v" id="statToday">0</div><div class="k">Today</div></div>
+      <div class="stat-chip"><div class="v" id="statSession">0</div><div class="k">This session</div></div>
+      <div class="stat-chip"><div class="v" id="statBest">0</div><div class="k">Best day</div></div>
+    </div>
+
+    <div class="controls">
+      <button class="ctrl-btn danger" id="decBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg>
+        Undo
+      </button>
+      <button class="ctrl-btn" id="resetBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+        Reset
+      </button>
+      <button class="ctrl-btn primary" id="colorBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2a10 10 0 1 0 10 10c0-1.1-.9-2-2-2h-2.5a2 2 0 0 1-2-2c0-.4.1-.7.3-1 .3-.5.4-1 .2-1.6C15.5 4.1 13.9 2 12 2z"/></svg>
+        Color
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Color / rename sheet -->
+<div class="sheet-backdrop" id="colorSheet">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h2>Device color</h2>
+    <p class="hint">Pick a finish for this counter.</p>
+    <div class="swatches" id="swatches"></div>
+
+    <div class="field">
+      <label for="renameInput">Counter name</label>
+      <input type="text" id="renameInput" maxlength="24" placeholder="e.g. Prayer Count">
+    </div>
+
+    <div class="sheet-actions">
+      <button class="ctrl-btn" id="closeColorSheet">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Manage counters sheet -->
+<div class="sheet-backdrop" id="manageSheet">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h2>Your counters</h2>
+    <p class="hint">Switch, rename, or clear out old ones.</p>
+    <div class="counter-list" id="counterList"></div>
+    <div class="sheet-actions">
+      <button class="ctrl-btn primary" id="newCounterBtn">+ New counter</button>
+      <button class="ctrl-btn" id="closeManageSheet">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var STORAGE_KEY = "tally.counters.v1";
+  var PALETTE = [
+    {name:"Sky",     hi:"#a9cfe6", mid:"#7FB3D5", lo:"#5c8caf"},
+    {name:"Coral",   hi:"#f3ab98", mid:"#E8836B", lo:"#c1614a"},
+    {name:"Mint",    hi:"#a9e0c2", mid:"#7FCDA8", lo:"#59a883"},
+    {name:"Lilac",   hi:"#c6b3e0", mid:"#A78BC9", lo:"#8267a6"},
+    {name:"Amber",   hi:"#f0cd7e", mid:"#E8B84B", lo:"#c2962e"},
+    {name:"Charcoal",hi:"#7c8494", mid:"#4A5568", lo:"#33394a"}
+  ];
+
+  var $ = function(id){ return document.getElementById(id); };
+  var uid = function(){ return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); };
+  var todayKey = function(){ return new Date().toISOString().slice(0,10); };
+
+  var state = loadState();
+
+  function defaultCounter(name){
+    return {
+      id: uid(),
+      name: name || "New Counter",
+      count: 0,
+      step: 1,
+      colorIdx: 0,
+      sessionStart: 0,
+      history: [],      // undo stack of deltas
+      byDay: {}         // date -> count added that day
+    };
+  }
+
+  function loadState(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){
+        var parsed = JSON.parse(raw);
+        if(parsed && parsed.counters && parsed.counters.length) return parsed;
+      }
+    }catch(e){}
+    var c = defaultCounter("Prayer Count");
+    return { counters:[c], activeId: c.id };
+  }
+
+  function saveState(){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
+  }
+
+  function activeCounter(){
+    var c = state.counters.find(function(x){ return x.id === state.activeId; });
+    if(!c){ c = state.counters[0]; state.activeId = c.id; }
+    return c;
+  }
+
+  // ---------- Rendering ----------
+  var lcdEl = $('lcdDigits');
+  var labelEl = $('counterLabel');
+  var titleEl = $('deviceTitle');
+  var deviceWrap = $('deviceWrap');
+  var plunger = $('plunger');
+  var tabsRow = $('tabsRow');
+
+  function paletteColor(idx){ return PALETTE[idx % PALETTE.length]; }
+
+  function applyDeviceColor(idx){
+    var p = paletteColor(idx);
+    document.documentElement.style.setProperty('--device', p.mid);
+    document.documentElement.style.setProperty('--device-hi', p.hi);
+    document.documentElement.style.setProperty('--device-lo', p.lo);
+  }
+
+  function formatDigits(n){
+    var s = String(Math.max(0, n));
+    var padded = s.length < 5 ? ('00000'.slice(0, 5 - s.length) + s) : s;
+    var leadingZeros = padded.length - s.length;
+    var html = '';
+    for(var i=0;i<padded.length;i++){
+      var cls = i < leadingZeros ? 'digit ghost' : 'digit';
+      html += '<span class="'+cls+'">'+padded[i]+'</span>';
+    }
+    return html;
+  }
+
+  function render(){
+    var c = activeCounter();
+    applyDeviceColor(c.colorIdx);
+    titleEl.textContent = c.name;
+    labelEl.textContent = c.name;
+    lcdEl.innerHTML = formatDigits(c.count);
+    renderTabs();
+    renderStats();
+  }
+
+  function renderTabs(){
+    tabsRow.innerHTML = '';
+    state.counters.forEach(function(c){
+      var p = paletteColor(c.colorIdx);
+      var btn = document.createElement('button');
+      btn.className = 'tab' + (c.id === state.activeId ? ' active' : '');
+      btn.style.setProperty('--tab-color', p.mid);
+      btn.innerHTML = '<span class="dot"></span><span>'+escapeHtml(c.name)+'</span>';
+      btn.addEventListener('click', function(){
+        state.activeId = c.id;
+        saveState();
+        render();
+      });
+      tabsRow.appendChild(btn);
+    });
+    var addBtn = document.createElement('button');
+    addBtn.className = 'tab add';
+    addBtn.textContent = '+ Add';
+    addBtn.addEventListener('click', addNewCounter);
+    tabsRow.appendChild(addBtn);
+  }
+
+  function renderStats(){
+    var c = activeCounter();
+    var today = c.byDay[todayKey()] || 0;
+    var best = 0;
+    Object.keys(c.byDay).forEach(function(k){ if(c.byDay[k] > best) best = c.byDay[k]; });
+    $('statToday').textContent = today;
+    $('statSession').textContent = c.sessionStart;
+    $('statBest').textContent = best;
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(m){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
+    });
+  }
+
+  // ---------- Actions ----------
+  function bumpLcd(){
+    lcdEl.classList.remove('bump');
+    void lcdEl.offsetWidth;
+    lcdEl.classList.add('bump');
+  }
+
+  function increment(amount){
+    var c = activeCounter();
+    c.count += amount;
+    c.sessionStart += amount;
+    var k = todayKey();
+    c.byDay[k] = (c.byDay[k] || 0) + amount;
+    c.history.push(amount);
+    if(c.history.length > 50) c.history.shift();
+    saveState();
+    lcdEl.innerHTML = formatDigits(c.count);
+    bumpLcd();
+    renderStats();
+    if(navigator.vibrate) navigator.vibrate(12);
+  }
+
+  function undo(){
+    var c = activeCounter();
+    if(!c.history.length){ showToast('Nothing to undo'); return; }
+    var last = c.history.pop();
+    c.count = Math.max(0, c.count - last);
+    c.sessionStart = Math.max(0, c.sessionStart - last);
+    var k = todayKey();
+    c.byDay[k] = Math.max(0, (c.byDay[k] || 0) - last);
+    saveState();
+    lcdEl.innerHTML = formatDigits(c.count);
+    renderStats();
+    showToast('Undid +' + last);
+  }
+
+  function resetCount(){
+    var c = activeCounter();
+    if(c.count === 0){ showToast('Already at zero'); return; }
+    c.count = 0;
+    c.sessionStart = 0;
+    c.history = [];
+    saveState();
+    lcdEl.innerHTML = formatDigits(0);
+    bumpLcd();
+    renderStats();
+    showToast('Counter reset');
+  }
+
+  function addNewCounter(){
+    var c = defaultCounter('Counter ' + (state.counters.length + 1));
+    c.colorIdx = state.counters.length % PALETTE.length;
+    state.counters.push(c);
+    state.activeId = c.id;
+    saveState();
+    render();
+    renderManageList();
+    showToast('New counter added');
+  }
+
+  function deleteCounter(id){
+    if(state.counters.length === 1){ showToast("Keep at least one counter"); return; }
+    state.counters = state.counters.filter(function(c){ return c.id !== id; });
+    if(state.activeId === id) state.activeId = state.counters[0].id;
+    saveState();
+    render();
+    renderManageList();
+  }
+
+  var toastTimer = null;
+  function showToast(msg){
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 1600);
+  }
+
+  // ---------- Plunger interactions ----------
+  var currentStep = 1;
+
+  function pressVisual(x, y){
+    deviceWrap.classList.add('pressed');
+    var r = document.createElement('div');
+    r.className = 'ripple';
+    var size = 90;
+    r.style.width = size + 'px';
+    r.style.height = size + 'px';
+    var rect = deviceWrap.getBoundingClientRect();
+    r.style.left = (x - rect.left - size/2) + 'px';
+    r.style.top = (y - rect.top - size/2) + 'px';
+    deviceWrap.appendChild(r);
+    setTimeout(function(){ r.remove(); }, 520);
+    setTimeout(function(){ deviceWrap.classList.remove('pressed'); }, 110);
+  }
+
+  function handlePress(e){
+    e.preventDefault();
+    var point = (e.touches && e.touches[0]) ? e.touches[0] : e;
+    pressVisual(point.clientX, point.clientY);
+    increment(currentStep);
+  }
+
+  plunger.addEventListener('touchstart', handlePress, {passive:false});
+  plunger.addEventListener('click', function(e){
+    // avoid double fire on touch devices that also emit click
+    if(e.pointerType === 'touch') return;
+    handlePress(e);
+  });
+
+  // long-press plunger to reset
+  var pressTimer = null;
+  function startLongPress(e){
+    pressTimer = setTimeout(function(){
+      resetCount();
+      if(navigator.vibrate) navigator.vibrate([10,30,10]);
+    }, 700);
+  }
+  function cancelLongPress(){ clearTimeout(pressTimer); }
+  plunger.addEventListener('touchstart', startLongPress, {passive:true});
+  plunger.addEventListener('touchend', cancelLongPress);
+  plunger.addEventListener('touchmove', cancelLongPress);
+  plunger.addEventListener('mousedown', startLongPress);
+  plunger.addEventListener('mouseup', cancelLongPress);
+  plunger.addEventListener('mouseleave', cancelLongPress);
+
+  // ---------- Step selector ----------
+  var stepBtnsEl = $('stepBtns');
+  function setStep(step, el){
+    currentStep = step;
+    Array.prototype.forEach.call(stepBtnsEl.children, function(b){ b.classList.remove('active'); });
+    el.classList.add('active');
+  }
+  Array.prototype.forEach.call(stepBtnsEl.children, function(btn){
+    btn.addEventListener('click', function(){ setStep(parseInt(btn.dataset.step,10), btn); });
+  });
+  stepBtnsEl.children[0].classList.add('active');
+
+  // ---------- Buttons ----------
+  $('decBtn').addEventListener('click', undo);
+  $('resetBtn').addEventListener('click', function(){
+    if(confirm('Reset this counter to zero?')) resetCount();
+  });
+
+  // ---------- Color / rename sheet ----------
+  var colorSheet = $('colorSheet');
+  var swatchesEl = $('swatches');
+  var renameInput = $('renameInput');
+
+  function openColorSheet(){
+    var c = activeCounter();
+    renderSwatches(c.colorIdx);
+    renameInput.value = c.name;
+    colorSheet.classList.add('open');
+  }
+  function closeColorSheet(){
+    var c = activeCounter();
+    var newName = renameInput.value.trim();
+    if(newName) c.name = newName;
+    saveState();
+    render();
+    colorSheet.classList.remove('open');
+  }
+
+  function renderSwatches(selectedIdx){
+    swatchesEl.innerHTML = '';
+    PALETTE.forEach(function(p, idx){
+      var sw = document.createElement('button');
+      sw.className = 'swatch' + (idx === selectedIdx ? ' selected' : '');
+      sw.style.background = 'linear-gradient(155deg,' + p.hi + ',' + p.mid + ' 60%,' + p.lo + ')';
+      sw.setAttribute('aria-label', p.name);
+      sw.addEventListener('click', function(){
+        var c = activeCounter();
+        c.colorIdx = idx;
+        saveState();
+        applyDeviceColor(idx);
+        renderSwatches(idx);
+        renderTabs();
+      });
+      swatchesEl.appendChild(sw);
+    });
+  }
+
+  $('colorBtn').addEventListener('click', openColorSheet);
+  $('closeColorSheet').addEventListener('click', closeColorSheet);
+  colorSheet.addEventListener('click', function(e){ if(e.target === colorSheet) closeColorSheet(); });
+  labelEl.addEventListener('click', openColorSheet);
+
+  // ---------- Manage sheet ----------
+  var manageSheet = $('manageSheet');
+  var counterListEl = $('counterList');
+
+  function renderManageList(){
+    counterListEl.innerHTML = '';
+    state.counters.forEach(function(c){
+      var p = paletteColor(c.colorIdx);
+      var row = document.createElement('div');
+      row.className = 'counter-row';
+      row.innerHTML =
+        '<span class="swatch-sm" style="background:'+p.mid+'"></span>' +
+        '<span class="name">'+escapeHtml(c.name)+'</span>' +
+        '<span class="val">'+c.count+'</span>';
+      row.addEventListener('click', function(ev){
+        if(ev.target.closest('.del')) return;
+        state.activeId = c.id;
+        saveState();
+        render();
+        manageSheet.classList.remove('open');
+      });
+      var del = document.createElement('button');
+      del.className = 'del';
+      del.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>';
+      del.addEventListener('click', function(e){
+        e.stopPropagation();
+        if(confirm('Delete "'+c.name+'"? This cannot be undone.')) deleteCounter(c.id);
+      });
+      row.appendChild(del);
+      counterListEl.appendChild(row);
+    });
+  }
+
+  $('openSettings').addEventListener('click', function(){
+    renderManageList();
+    manageSheet.classList.add('open');
+  });
+  $('closeManageSheet').addEventListener('click', function(){ manageSheet.classList.remove('open'); });
+  manageSheet.addEventListener('click', function(e){ if(e.target === manageSheet) manageSheet.classList.remove('open'); });
+  $('newCounterBtn').addEventListener('click', addNewCounter);
+
+  // prevent page scroll bounce/zoom gestures interfering with taps
+  document.addEventListener('gesturestart', function(e){ e.preventDefault(); });
+
+  render();
+})();
+</script>
+</body>
+</html>
